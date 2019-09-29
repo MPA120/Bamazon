@@ -2,14 +2,14 @@ var mysql = require("mysql");
 var inquirer = require ("inquirer");
 var columnify = require ("columnify");
 
-var connectionObject = mysql.createConnection({
+var connectionObject ={
     host: "localhost",
-    port: 3006,
+    port: 3306,
     user: "root",
     password: "1234",
     database: "bamazon",
 
-});
+};
 
 var connection = mysql.createConnection(connectionObject);
 
@@ -19,34 +19,38 @@ connection.connect(function (err) {
     connection.end()
 })
 
-function start() {
-    inquirer.prompt([
-        {
-            type: "input",
-            name: "id",
-            message: "Enter the product ID",
-
-        },
-        {
-            type: "input",
-            name: "units",
-            message: "How many would you like?",
-                validate: function (input){
-                    return !(isNaN(parseFloat(input))); 
-                }
-        }
-    ]).then(function (response) {
-        connection.query(
-            "INSERT INTO items SET ?",
+connection.query("SELECT * FROM products", function(err, data){
+    if (err) {console.log(err)}
+        console.log(columnify(data, {columnSplitter: "|"}));
+        inquirer.prompt([
             {
-                item: response.itemName,
-                price: response.itemPrice
+                type: "input",
+                name: "item_id",
+                message: "What product ID would you like to buy?"
             },
-            function(err, resp) {
-                if (err) throw err;
-                console.log(resp);
-                startApp();
+            {
+                type: "input",
+                name: "quantity",
+                message: "How many?"
+                
             }
-        )
-    })
-}
+
+        ]).then(function(response){
+        connection.query("SELECT * FROM products WHERE item_id=" + response.item_id)
+        function entry (err, resp) {
+            if(err) throw (err);
+            console.log(resp);
+            if (resp[0].stock_quantity >= response.quantity){
+                console.log("This item is in stock!")
+                connection.query(
+                    `UPDATE products SET \`stock_quantity\`=${resp[0].stock_quantity} - ${response.quantity} WHERE \'item_id\`=${response.item_id}`,
+
+                    function(err) {
+                        if (err) {
+                            console.log (err)
+                        } else {
+                            console.log `Your total cost is $ ${resp[0].price * response.quantity}`
+                        }
+                    }
+                )
+            }}})})
